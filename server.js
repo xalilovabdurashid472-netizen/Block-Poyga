@@ -16,11 +16,17 @@ const PORT = process.env.PORT || 3000;
 const MAX_PLAYERS = 10;
 const rooms = new Map();
 
-app.use(express.static(path.join(__dirname, 'public')));
+// index.html ni avval public/ papkasidan, topilmasa loyiha ildizidan qidiramiz
+const PAGE_CANDIDATES = [
+  path.join(__dirname, 'public', 'index.html'),
+  path.join(__dirname, 'index.html')
+];
+const publicDir = path.join(__dirname, 'public');
+if (fs.existsSync(publicDir)) app.use(express.static(publicDir));
 
 app.get('/', (_req, res) => {
-  const page = path.join(__dirname, 'public', 'index.html');
-  if (!fs.existsSync(page)) return res.status(404).send('public/index.html topilmadi.');
+  const page = PAGE_CANDIDATES.find(p => fs.existsSync(p));
+  if (!page) return res.status(404).send('index.html topilmadi.');
   res.sendFile(page);
 });
 
