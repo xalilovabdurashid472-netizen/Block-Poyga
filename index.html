@@ -256,8 +256,8 @@ const COARSE=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)||('onto
 
 /* ---------- renderer ---------- */
 let renderer;
-try{renderer=new THREE.WebGLRenderer({canvas:$('gl'),antialias:true});}catch(e){$('nogl').hidden=false;return;}
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
+try{renderer=new THREE.WebGLRenderer({canvas:$('gl'),antialias:!COARSE,powerPreference:'high-performance'});}catch(e){$('nogl').hidden=false;return;}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,COARSE?1.2:1.5));
 const stage=$('stage');
 const scene=new THREE.Scene();
 const SKY=0x8fc9ff;
@@ -829,6 +829,11 @@ function showResults(){
   $('myPlace').textContent=won?'1-O‘RIN — G‘ALABA!':myRank+"-o'rin";
   const reward=won?180:Math.max(25,60-myRank*5);
   prefs.coins+=reward+player.coins;prefs.races++;if(won)prefs.wins++;savePrefs();
+  // Natijalarni serverga yuborish: admin panel statistikasi va umumiy jadval uchun.
+  fetch('/api/race/complete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    name:prefs.name||'Poygachi',won,rank:myRank,duration:raceT,coins:player.coins+reward,laps:LAPS,
+    bestLap:player.bestLap||0,mode:onlineMode?'online':'solo'
+  })}).catch(()=>{});
   $('myPlace').style.color=won?'#8be04f':'#f3f1e8';
   $('resInfo').textContent=(won?'TABRIKLAYMIZ! SEN POYGADA G‘OLIB BO‘LDING. +':'Keyingi safar yana urinib ko‘r! +')+reward+' bonus tanga. Jami hamyon: '+prefs.coins+'. Poygadagi tangalar: '+player.coins+'. Eng yaxshi aylanish: '+fmt(player.bestLap)+'.';
   $('results').hidden=false;$('hud').hidden=true;$('touch').hidden=true;$('wrong').hidden=true;
@@ -944,7 +949,7 @@ function update(dt){
     $('wrong').hidden=wrongT<0.8;
   }
   if(player.bumpCool<0)player.bumpCool=0;
-  if(onlineMode)updateRemote(dt);
+  if(onlineMode){updateRemote(dt);collideRemotePlayer();}
   updateHud();
 }
 
@@ -992,6 +997,24 @@ function onlineStandings(){
   return arr;
 }
 // Masofadagi mashinalarni silliq harakat bilan yangilash
+function collideRemotePlayer(){
+  // Serverdan kelayotgan mashinalar bilan lokal fizik to‘qnashuv.
+  const radius=3.55, min2=radius*radius;
+  for(const r of remotePlayers.values()){
+    const dx=r.sx-player.x,dz=r.sz-player.z,d2=dx*dx+dz*dz;
+    if(d2>=min2)continue;
+    let d=Math.sqrt(d2),nx,nz;
+    if(d<0.001){nx=1;nz=0;d=0.001;}else{nx=dx/d;nz=dz/d;}
+    const overlap=radius-d;
+    player.x-=nx*(overlap+0.015)*0.82;
+    player.z-=nz*(overlap+0.015)*0.82;
+    const toward=player.vx*nx+player.vz*nz;
+    if(toward>0){player.vx-=nx*toward*1.25;player.vz-=nz*toward*1.25;}
+    if(overlap>0.5&&player.bumpCool<=0){
+      player.bumpCool=0.25;cam.shake=Math.max(cam.shake,Math.min(0.75,overlap/4));
+    }
+  }
+}
 function updateRemote(dt){
   for(const r of remotePlayers.values()){
     const d=r.data,k=1-Math.exp(-dt*12);
