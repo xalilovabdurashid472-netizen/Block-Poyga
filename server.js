@@ -63,7 +63,7 @@ app.get('/api/admin/stats', adminAuth, (_req, res) => {
   res.json({ total: { ...stats.total, players: users.length }, users, days });
 });
 app.post('/api/race/complete', (req, res) => {
-  const name = String(req.body.name || 'Poygachi').replace(/[\\u0000-\\u001f<>]/g, '').trim().slice(0,18) || 'Poygachi';
+  const name = String(req.body.name || 'Poygachi').replace(/[\\x00-\\x1f<>]/g, '').trim().slice(0,18) || 'Poygachi';
   const won = req.body.won === true, rank = Math.max(1, Math.min(20, Number(req.body.rank) || 1));
   const duration = Math.max(0, Math.min(36000, Number(req.body.duration) || 0));
   const coins = Math.max(0, Math.min(100000, Number(req.body.coins) || 0));
